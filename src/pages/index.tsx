@@ -1,8 +1,16 @@
+import Head from 'next/head';
+
+
 
 export default function Home() {
   return (
-    <div>
+    <>
+      <Head>
+        <title>ig.News</title>
+      </Head>
+
+
       <h1>Hello World</h1>
-    </div>
+    </>
   )
 }
