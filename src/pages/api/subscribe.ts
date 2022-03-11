@@ -1,80 +1,68 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { getSession } from "next-auth/react";
-import { stripe } from './../../services/stripe';
-
 import { query as q } from "faunadb";
+import { getSession } from "next-auth/react";
+import { stripe } from "../../services/stripe";
 import { fauna } from "../../services/fauna";
-
-
 
 type User = {
     ref: {
-        id: string,
+        id: string;
     },
     data: {
-        stripe_custumer_id: string,
+        stripe_customer_id: string;
     }
 }
 
-export default async (req: NextApiRequest, res: NextApiResponse) => {
-    if (req.method === 'POST') {
-
-        const session = await getSession({ req });
+export default async (request: NextApiRequest, response: NextApiResponse) => {
+    if (request.method === "POST") {
+        const session = await getSession({ req: request });
 
         const user = await fauna.query<User>(
             q.Get(
                 q.Match(
-                    q.Index('user_by_email'),
+                    q.Index("user_by_email"),
                     q.Casefold(session.user.email)
                 )
             )
-        );
+        )
 
+        let customerId = user.data.stripe_customer_id
 
-        let custumerId = user.data.stripe_custumer_id;
-
-        if (!custumerId) {
-            const stripecustumer = await stripe.customers.create({
-                email: session.user.email,
-                // metadata
-            });
-
-
+        if (!customerId) {
+            const stripeCustomer = await stripe.customers.create({
+                email: session.user.email
+            })
 
             await fauna.query(
                 q.Update(
-                    q.Ref(q.Collection('users'), user.ref.id),
+                    q.Ref(q.Collection("users"), user.ref.id),
                     {
                         data: {
-                            stripe_custumer_id: stripecustumer.id
+                            stripe_customer_id: stripeCustomer.id
                         }
                     }
                 )
-            );
+            )
 
-
-            custumerId = stripecustumer.id
+            customerId = stripeCustomer.id
         }
 
-
-
         const stripeCheckoutSession = await stripe.checkout.sessions.create({
-            customer: custumerId,
-            payment_method_types: ['card'],
-            billing_address_collection: 'required',
+            customer: customerId,
+            payment_method_types: ["card"],
+            billing_address_collection: "required",
             line_items: [
-                { price: 'price_1Kb8yKK8nOKGfTZz4QHoywfG', quantity: 1 }
+                { price: "price_1Kb8yKK8nOKGfTZz4QHoywfG", quantity: 1 }
             ],
-            mode: 'subscription',
+            mode: "subscription",
             allow_promotion_codes: true,
             success_url: process.env.STRIPE_SUCCESS_URL,
-            cancel_url: process.env.STRIPE_CANCEL_URL,
+            cancel_url: process.env.STRIPE_CANCEL_URL
         })
 
-
-        return res.status(200).json({ sessionId: stripeCheckoutSession.id })
+        return response.status(200).json({ sessionId: stripeCheckoutSession.id })
     } else {
-        res.setHeader('Allow', 'POST');
-        res.status(405).end('Method not allowed');
+        response.setHeader("Allow", "POST");
+        response.status(405).end("Method not allowed")
     }
 }
