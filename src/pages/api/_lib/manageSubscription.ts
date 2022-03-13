@@ -30,7 +30,7 @@ export async function manageSubscription(
     const subscriptionData = {
         id: subscription.id,
         userId: userRef,
-        status: subscription.status,
+        status_id: subscription.status,
         priceId: subscription.items.data[0].price.id,
     }
 
@@ -54,12 +54,12 @@ export async function manageSubscription(
                         q.Get(
                             q.Match(
                                 q.Index('subscription_by_id'),
-                                subscriptionId,
+                                subscription.id,
                             )
                         )
                     ),
                     { data: subscriptionData }
-                )
+                ),
             )
         } catch (error) {
             console.log(error)
